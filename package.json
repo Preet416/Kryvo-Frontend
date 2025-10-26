@@ -20,7 +20,8 @@
     "react-router-dom": "^7.9.4",
     "simple-peer": "^9.11.1",
     "socket.io-client": "^4.8.1",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "yjs": "^13.6.27"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
