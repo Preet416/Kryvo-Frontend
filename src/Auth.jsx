@@ -2,17 +2,23 @@ import { useState } from "react";
 import { supabase } from "./supabaseClient";
 
 export default function Auth({ onLogin, onClose }) {
-  const [mode, setMode] = useState("signin"); // "signin" or "signup"
+  const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState(""); // only for sign-up
-  const [role, setRole] = useState("employee"); // new: employee or manager
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("employee");
   const [message, setMessage] = useState("");
 
-  // Sign-up function
-  const handleSignUp = async () => {
+  function generateCode(len = 6) {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let s = "";
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+
+     const handleSignUp = async () => {
     if (!name || !email || !password) {
-      setMessage("⚠️ Please enter name, email and password");
+      setMessage("⚠️ Please enter name, email, and password");
       return;
     }
 
@@ -20,16 +26,39 @@ export default function Auth({ onLogin, onClose }) {
       email,
       password,
       options: {
-        data: { full_name: name, role },
+        data: { full_name: name, role }, 
         emailRedirectTo: `${window.location.origin}/`,
       },
     });
 
-    if (error) setMessage(error.message);
-    else setMessage("✅ Signup successful! Check your email to confirm your account.");
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    
+    const userId = data.user?.id;
+    if (userId) {
+      if (role === "manager") {
+        await supabase.from("managers").upsert({
+          user_id: userId,
+          name,
+          email,
+          unique_code: generateCode(6),
+        });
+      } else {
+        await supabase.from("employees").upsert({
+          user_id: userId,
+          name,
+          email,
+        });
+      }
+    }
+
+    setMessage("Signup successful! Check your email to confirm your account.");
   };
 
-  // Sign-in function
+  // Sign-in
   const handleSignIn = async () => {
     if (!email || !password) {
       setMessage("⚠️ Please enter email and password");
@@ -42,18 +71,17 @@ export default function Auth({ onLogin, onClose }) {
       return;
     }
 
-    if (!data.user.email_confirmed_at) {
-      setMessage("⚠️ Email not confirmed yet. Check your inbox.");
-      return;
-    }
+    const userId = data.user?.id;
+    let userRole = "employee";
 
-    // get role from user metadata
-    const userRole = data.user.user_metadata?.role || "employee";
+   
+    const { data: mgr } = await supabase.from("managers").select("user_id").eq("user_id", userId).single();
+    if (mgr) userRole = "manager";
+
     onLogin({ ...data.user, role: userRole });
     onClose();
   };
 
-  // Reset password
   const handleReset = async () => {
     if (!email) {
       setMessage("⚠️ Enter your email to send reset link");
@@ -65,7 +93,7 @@ export default function Auth({ onLogin, onClose }) {
     });
 
     if (error) setMessage(error.message);
-    else setMessage("✅ Reset link sent! Check your email.");
+    else setMessage("Reset link sent! Check your email.");
   };
 
   return (
@@ -102,7 +130,6 @@ export default function Auth({ onLogin, onClose }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-
         <input
           className="w-full p-3 mb-4 rounded bg-gray-800 border border-gray-700 text-white placeholder-gray-400"
           type="password"
@@ -138,20 +165,14 @@ export default function Auth({ onLogin, onClose }) {
           {mode === "signin" ? (
             <>
               Don’t have an account?{" "}
-              <button
-                onClick={() => setMode("signup")}
-                className="text-indigo-400 underline"
-              >
+              <button onClick={() => setMode("signup")} className="text-indigo-400 underline">
                 Sign Up
               </button>
             </>
           ) : (
             <>
               Already have an account?{" "}
-              <button
-                onClick={() => setMode("signin")}
-                className="text-indigo-400 underline"
-              >
+              <button onClick={() => setMode("signin")} className="text-indigo-400 underline">
                 Sign In
               </button>
             </>

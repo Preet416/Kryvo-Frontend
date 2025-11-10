@@ -13,7 +13,7 @@ export default function Whiteboard({ onBack }) {
 
     const container = canvasRef.current.parentElement;
     const canvas = new fabric.Canvas(canvasRef.current, {
-      backgroundColor: "#f8f8f8", // changed from black to off-white
+      backgroundColor: "#f8f8f8", 
       isDrawingMode: true,
     });
 

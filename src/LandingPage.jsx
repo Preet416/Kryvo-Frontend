@@ -25,10 +25,10 @@ export default function LandingPage({ onShowAuth }) {
         </div>
       </nav>
 
-      {/* 🎯 Section 1: Hero */}
+     
       <section className="w-screen min-h-[120vh] flex flex-col justify-center items-center text-center px-6 md:px-20 pt-32 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
         <h1 className="text-6xl md:text-7xl font-extrabold mb-6 tracking-tight text-indigo-400">
-          AI Remote Work Suite Management
+          AI Remote Work Suite 
         </h1>
         <p className="text-2xl md:text-3xl mb-6 max-w-3xl mx-auto text-gray-300">
           Powered by AI Assistant — Collaborate, Communicate, and Create Seamlessly from Anywhere.
@@ -37,7 +37,7 @@ export default function LandingPage({ onShowAuth }) {
           Chat, manage tasks, create documents, whiteboards, and AI-powered insights — all in one place.
         </p>
 
-        {/* Hero image placeholder */}
+        
        <div className="w-full max-w-5xl h-[28rem] bg-gray-700 rounded-xl mb-12 flex items-center justify-center overflow-hidden">
         <img
          src="/banner1.jpeg"
@@ -55,7 +55,7 @@ export default function LandingPage({ onShowAuth }) {
         </button>
       </section>
 
-      {/* 🧠 Section 2: AI Features */}
+     
       <section className="w-full py-32 px-6 md:px-20 bg-gray-800">
         <h2 className="text-4xl md:text-5xl font-bold mb-12 text-center text-indigo-400">
           AI-Powered Productivity
@@ -63,7 +63,7 @@ export default function LandingPage({ onShowAuth }) {
 
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 items-start">
-          {/* Card 1 */}
+       
           <div className="bg-gray-900 rounded-xl p-8 shadow-lg hover:shadow-2xl transition transform hover:-translate-y-2 hover:scale-105 flex flex-col items-center">
             <div className="w-full h-40 bg-gray-700 rounded mb-6 flex items-center justify-center text-gray-400">
                <img
@@ -78,7 +78,7 @@ export default function LandingPage({ onShowAuth }) {
             </p>
           </div>
 
-          {/* Card 2 */}
+          
           <div className="bg-gray-900 rounded-xl p-8 shadow-lg hover:shadow-2xl transition transform hover:-translate-y-2 hover:scale-105 flex flex-col items-center">
             <div className="w-full h-40 bg-gray-700 rounded mb-6 flex items-center justify-center text-gray-400">
                 <img
@@ -93,7 +93,6 @@ export default function LandingPage({ onShowAuth }) {
             </p>
           </div>
 
-          {/* Card 3 */}
           <div className="bg-gray-900 rounded-xl p-8 shadow-lg hover:shadow-2xl transition transform hover:-translate-y-2 hover:scale-105 flex flex-col items-center">
             <div className="w-full h-40 bg-gray-700 rounded mb-6 flex items-center justify-center text-gray-400">
               <img
@@ -110,7 +109,7 @@ export default function LandingPage({ onShowAuth }) {
         </div>
       </section>
 
-      {/* ⚡ Section 3: Why Choose Us */}
+    
       <section className="w-full py-32 px-6 md:px-20 bg-gray-900">
         <h2 className="text-4xl md:text-5xl font-bold mb-12 text-center text-indigo-400">
           Why Choose RemoteWork AI
@@ -135,7 +134,7 @@ export default function LandingPage({ onShowAuth }) {
         </div>
       </section>
 
-      {/* 🦶 Footer */}
+      
       <footer className="w-full py-12 px-6 md:px-20 bg-gray-900 text-gray-400 flex flex-col md:flex-row justify-between items-center border-t border-gray-700">
         <p className="mb-4 md:mb-0">© 2025 RemoteWork AI. All rights reserved.</p>
         <div className="space-x-4">

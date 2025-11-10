@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import io from "socket.io-client";
 
-// Replace with your backend URL
+
 const SOCKET_SERVER_URL = "http://localhost:5000";
 
 export default function Chat({ username, room }) {
@@ -11,17 +11,17 @@ export default function Chat({ username, room }) {
   const messagesEndRef = useRef();
 
   useEffect(() => {
-    // Connect to Socket.io server
+    
     socketRef.current = io(SOCKET_SERVER_URL, {
       query: { username, room },
     });
 
-    // Listen for incoming messages
+   
     socketRef.current.on("chat-message", (message) => {
       setMessages((prev) => [...prev, message]);
     });
 
-    // Optional: fetch previous messages from backend
+   
     socketRef.current.emit("join-room", room);
 
     return () => {
@@ -29,7 +29,7 @@ export default function Chat({ username, room }) {
     };
   }, [room, username]);
 
-  // Auto-scroll to bottom
+  
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -53,7 +53,7 @@ export default function Chat({ username, room }) {
     <div className="flex-1 flex flex-col w-full h-full bg-gray-50 rounded-lg shadow-md p-4">
       <h2 className="text-xl font-bold text-indigo-700 mb-4">Team Chat</h2>
 
-      {/* Chat Messages */}
+      
       <div className="flex-1 overflow-auto mb-4 p-2 bg-white rounded-lg shadow-inner">
         {messages.map((msg, idx) => (
           <div
@@ -72,7 +72,7 @@ export default function Chat({ username, room }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Message Input */}
+    
       <form onSubmit={sendMessage} className="flex gap-2">
         <input
           type="text"

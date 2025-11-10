@@ -1,24 +1,46 @@
+
 import React, { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import LandingPage from "./LandingPage";
 import Auth from "./Auth";
 import Dashboard from "./Dashboard";
+import ManagerDashboard from "./ManagerDashboard";
+import AssignTask from "./AssignTask";
 import ResetPassword from "./ResetPassword";
 
 function DashboardWrapper({ currentUser, onLogout }) {
-  const [searchParams] = useSearchParams();
-  const roomId = searchParams.get("room") || "project-room-1";
+  const [role, setRole] = useState("employee");
+  const [loading, setLoading] = useState(true);
 
-  const normalizedUser = currentUser
-    ? {
-        email: currentUser.email,
-        name: currentUser.user_metadata?.full_name || currentUser.email,
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const userId = currentUser.id || currentUser.user?.id;
+       
+        const { data: mgrData, error: mgrErr } = await supabase
+          .from("managers")
+          .select("user_id")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+    if (mgrData && !mgrErr) setRole("manager");
+        else setRole("employee");
+     } catch (err) {
+        console.error("Role check failed", err);
+        setRole("employee");
+      } finally {
+        setLoading(false);
       }
-    : { email: "guest@local", name: "Guest" };
+    };
+    fetchRole();
+  }, [currentUser]);
 
-  const isHost = true;
-  return <Dashboard currentUser={normalizedUser} isHost={isHost} onLogout={onLogout} roomId={roomId} />;
+  if (loading) return <div className="p-8 text-gray-200">Loading...</div>;
+
+  if (role === "manager")
+    return <ManagerDashboard currentUser={currentUser} onLogout={onLogout} />;
+  return <Dashboard currentUser={currentUser} onLogout={onLogout} />;
 }
 
 export default function App() {
@@ -61,33 +83,46 @@ export default function App() {
     setIsAuthenticated(false);
   };
 
-  const handleShowAuth = () => setShowAuth(true);
-  const handleCloseAuth = () => setShowAuth(false);
-
   return (
     <BrowserRouter>
       <Routes>
         <Route
           path="/"
           element={
-            isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage onShowAuth={handleShowAuth} />
+            isAuthenticated
+              ? <Navigate to="/dashboard" replace />
+              : <LandingPage onShowAuth={() => setShowAuth(true)} />
           }
         />
         <Route
           path="/dashboard"
           element={
-            isAuthenticated ? (
-              <DashboardWrapper currentUser={currentUser} onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/" replace />
-            )
+            isAuthenticated
+              ? <DashboardWrapper currentUser={currentUser} onLogout={handleLogout} />
+              : <Navigate to="/" replace />
+          }
+        />
+        <Route
+          path="/manager"
+          element={
+            isAuthenticated
+              ? <ManagerDashboard currentUser={currentUser} onLogout={handleLogout} />
+              : <Navigate to="/" replace />
+          }
+        />
+        <Route
+          path="/manager/assign"
+          element={
+            isAuthenticated
+              ? <AssignTask currentUser={currentUser} />
+              : <Navigate to="/" replace />
           }
         />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      {showAuth && <Auth onLogin={handleLogin} onClose={handleCloseAuth} />}
+      {showAuth && <Auth onLogin={handleLogin} onClose={() => setShowAuth(false)} />}
     </BrowserRouter>
   );
 }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import axios from "axios";
-import { v4 as uuidv4 } from "uuid"; // ✅ added for unique IDs
+import { v4 as uuidv4 } from "uuid"; 
+import { supabase } from "./supabaseClient";
 
 export default function TasksBoard({ currentUser, role }) {
   const userRole = role || currentUser?.user_metadata?.role || "employee";
@@ -20,15 +21,30 @@ export default function TasksBoard({ currentUser, role }) {
     status: "todo",
   });
 
-  // Fetch tasks
+  const [unsavedTasks, setUnsavedTasks] = useState({}); 
+
+  
+  const normalizeTask = (t) => {
+    return {
+      ...t,
+      
+      assignedTo: t.assignedTo || t.assigned_to || null,
+      managerId: t.managerId || t.manager_id || null,
+      status: t.status || "todo",
+    };
+  };
+
+ 
   const fetchTasks = async () => {
     if (!currentUser?.email || !userRole) return;
     try {
       const res = await axios.get("http://localhost:5000/api/tasks", {
         params: { email: currentUser.email, role: userRole },
       });
+      let tasks = res.data || [];
 
-      const tasks = res.data || [];
+      
+      tasks = tasks.map(normalizeTask);
 
       const newColumns = {
         todo: { name: "To Do", items: [] },
@@ -36,16 +52,15 @@ export default function TasksBoard({ currentUser, role }) {
         review: { name: "Review", items: [] },
         done: { name: "Done", items: [] },
       };
-
       tasks.forEach((task) => {
-        if (!task.id) task.id = uuidv4(); // ensure unique
+        if (!task.id) task.id = uuidv4();
         if (!newColumns[task.status]) {
           newColumns[task.status] = { name: task.status, items: [] };
         }
         newColumns[task.status].items.push(task);
       });
-
       setColumns(newColumns);
+      setUnsavedTasks({});
     } catch (err) {
       console.error("Failed to fetch tasks", err);
       alert("Failed to fetch tasks");
@@ -54,35 +69,54 @@ export default function TasksBoard({ currentUser, role }) {
 
   useEffect(() => {
     fetchTasks();
+    
   }, [currentUser?.email, userRole]);
 
-  // Add new task
   const handleAddTask = async () => {
     if (!taskData.title.trim()) return alert("Enter task title!");
     const newTask = {
       ...taskData,
       assignedTo: taskData.assignedTo || currentUser.email,
-      id: uuidv4(), // ensure unique id before sending
+      id: uuidv4(),
+    };
+
+    
+    const payload = {
+      ...newTask,
+      assigned_to: newTask.assignedTo,
+      manager_id: newTask.managerId || null,
     };
 
     try {
-      const res = await axios.post("http://localhost:5000/api/tasks", newTask, {
+      const res = await axios.post("http://localhost:5000/api/tasks", payload, {
         headers: { "Content-Type": "application/json" },
       });
-
       let addedTask = res.data || newTask;
-
       if (!addedTask.id) addedTask.id = newTask.id;
 
-      // ✅ Update frontend instantly
+      
+      addedTask = normalizeTask(addedTask);
+
       setColumns((prev) => {
         const updated = { ...prev };
         const exists = updated.todo.items.find((item) => item.id === addedTask.id);
-        if (!exists) {
-          updated.todo.items = [...updated.todo.items, addedTask];
-        }
+        if (!exists) updated.todo.items.push(addedTask);
         return updated;
       });
+
+      
+      try {
+        
+        const employeeIdOrEmail = addedTask.assignedTo;
+        await supabase.functions.invoke("send-task-email", {
+          employee_id_or_email: employeeIdOrEmail,
+          task_title: addedTask.title,
+          task_description: addedTask.description,
+          manager_name: currentUser?.user_metadata?.full_name || currentUser?.name || currentUser?.email,
+        });
+      } catch (emailErr) {
+        console.error("Email notification failed", emailErr);
+      }
 
       setTaskData({ title: "", description: "", assignedTo: "", status: "todo" });
     } catch (err) {
@@ -91,7 +125,7 @@ export default function TasksBoard({ currentUser, role }) {
     }
   };
 
-  // Delete task
+
   const handleDeleteTask = async (taskId) => {
     try {
       await axios.delete(`http://localhost:5000/api/tasks/${taskId}`);
@@ -108,12 +142,10 @@ export default function TasksBoard({ currentUser, role }) {
     }
   };
 
-  // Drag and drop
-  const onDragEnd = async (result) => {
+
+  const onDragEnd = (result) => {
     if (!result.destination) return;
     const { source, destination } = result;
-    if (!source || !destination) return;
-
     const sourceCol = columns[source.droppableId];
     const destCol = columns[destination.droppableId];
     const [movedItem] = sourceCol.items.splice(source.index, 1);
@@ -121,13 +153,48 @@ export default function TasksBoard({ currentUser, role }) {
     destCol.items.splice(destination.index, 0, movedItem);
     setColumns({ ...columns });
 
+    // track unsaved
+    setUnsavedTasks((prev) => ({ ...prev, [movedItem.id]: movedItem }));
+  };
+
+ 
+  const handleSave = async () => {
+    const tasksToSave = Object.values(unsavedTasks);
+    if (tasksToSave.length === 0) return alert("No changes to save!");
+
     try {
-      await axios.put(`http://localhost:5000/api/tasks/${movedItem.id}`, movedItem, {
-        headers: { "Content-Type": "application/json" },
-      });
+      await Promise.all(
+        tasksToSave.map((task) =>
+          axios.put(`http://localhost:5000/api/tasks/${task.id}`, {
+            ...task,
+          
+            assigned_to: task.assignedTo,
+            manager_id: task.managerId || null,
+          }, {
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
+
+   
+      for (const task of tasksToSave) {
+        try {
+          await supabase.functions.invoke("send-task-email", {
+            employee_id_or_email: task.assignedTo,
+            task_title: task.title,
+            task_description: task.description,
+            manager_name: currentUser?.user_metadata?.full_name || currentUser?.name || currentUser?.email,
+          });
+        } catch (emailErr) {
+          console.error("Email notification failed", emailErr);
+        }
+      }
+
+      alert("Tasks saved successfully!");
+      setUnsavedTasks({});
     } catch (err) {
-      console.error("Failed to update task status", err);
-      alert("Failed to update task status");
+      console.error("Failed to save tasks", err);
+      alert("Failed to save tasks");
     }
   };
 
@@ -162,6 +229,12 @@ export default function TasksBoard({ currentUser, role }) {
         >
           Add Task
         </button>
+        <button
+          onClick={handleSave}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+        >
+          Save Changes
+        </button>
       </div>
 
       <div className="flex-1 overflow-auto">
@@ -175,9 +248,7 @@ export default function TasksBoard({ currentUser, role }) {
                     ref={provided.innerRef}
                     className="bg-gray-800 rounded-xl shadow p-4 flex flex-col h-full"
                   >
-                    <h2 className="text-xl font-semibold text-indigo-300 mb-3">
-                      {column.name}
-                    </h2>
+                    <h2 className="text-xl font-semibold text-indigo-300 mb-3">{column.name}</h2>
                     <div className="flex-1 overflow-y-auto">
                       {column.items.map((item, index) => (
                         <Draggable key={item.id} draggableId={item.id} index={index}>
@@ -190,12 +261,8 @@ export default function TasksBoard({ currentUser, role }) {
                             >
                               <div>
                                 <h3 className="font-semibold text-gray-100">{item.title}</h3>
-                                {item.assignedTo && (
-                                  <p className="text-sm text-gray-300">👤 {item.assignedTo}</p>
-                                )}
-                                {item.description && (
-                                  <p className="text-xs text-gray-400 mt-1">{item.description}</p>
-                                )}
+                                {item.assignedTo && <p className="text-sm text-gray-300">👤 {item.assignedTo}</p>}
+                                {item.description && <p className="text-xs text-gray-400 mt-1">{item.description}</p>}
                               </div>
                               <button
                                 onClick={() => handleDeleteTask(item.id)}
